@@ -1,6 +1,4 @@
-# 🧬 SpringHill_Folders | Folding@Home Team
-
-![SpringHill_Folders Logo](INSERT_YOUR_LOGO_URL)
+# 🧬 SpringHill_Folders | Folding@Home
 
 > **"Turning spare cycles into cures, one protein at a time."**
 
