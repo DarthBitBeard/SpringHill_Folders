@@ -34,7 +34,8 @@ foreach ($Url in $Urls) {
 if (-not $Downloaded -or -not (Test-Path $InstallerPath)) {
     Write-Host "`n[X] ERROR: Could not download the F@H installer. All URLs failed." -ForegroundColor Red
     Write-Host "Please verify the official download link at foldingathome.org" -ForegroundColor Red
-    exit
+    Read-Host "Press Enter to exit..."
+    return
 }
 
 # 2. Silent Install
@@ -43,14 +44,14 @@ try {
     Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
 } catch {
     Write-Host "`n[X] ERROR: Failed to execute the installer." -ForegroundColor Red
-    exit
+    Read-Host "Press Enter to exit..."
+    return
 }
 
 # 3. Configure v8 (Idle-Only + Team)
 Write-Host "[3/4] Applying Team $TeamID and Idle-Only mode..."
 if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 
-# Stop client if it auto-started so we can write config safely
 Stop-Process -Name "fah-client" -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
@@ -65,7 +66,6 @@ $ConfigContent = @"
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
 # 4. Startup & Launch
-# Dynamically find where it installed (F@H has changed this in the past)
 $ExePaths = @(
     "$env:ProgramFiles\FAH-Client\fah-client.exe",
     "$env:ProgramFiles\Folding@home Client\fah-client.exe",
@@ -83,7 +83,8 @@ foreach ($Path in $ExePaths) {
 
 if (-not $ExePath) {
     Write-Host "`n[X] ERROR: Could not locate fah-client.exe after installation." -ForegroundColor Red
-    exit
+    Read-Host "Press Enter to exit..."
+    return
 }
 
 $StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
