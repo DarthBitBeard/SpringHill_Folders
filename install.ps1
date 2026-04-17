@@ -1,26 +1,56 @@
 # --- Spring Hill Folders Deployment (Team: 1068033) ---
 $TeamID = "1068033"
 $UserName = "Anonymous"
-$InstallerUrl = "https://download.foldingathome.org/releases/public/release/fah-client-next/windows-10-64bit/release/latest.exe"
+
+# Fallback array to combat F@H changing their directory structures
+$Urls = @(
+    "https://download.foldingathome.org/releases/public/release/fah-client/windows-10-64bit/v8.3/latest.exe",
+    "https://download.foldingathome.org/releases/public/release/fah-client/windows-10-64bit/latest.exe",
+    "https://download.foldingathome.org/releases/public/release/fah-client-next/windows-10-64bit/release/latest.exe"
+)
+
 $InstallerPath = "$env:TEMP\fah-client-v8.exe"
 $ConfigDir = "$env:AppData\FAH-Client"
 $ConfigPath = "$ConfigDir\config.xml"
 
 Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -ForegroundColor Cyan
 
-# 1. Download
-Write-Host "[1/4] Downloading official v8.5.5 installer..."
-Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath
+# 1. Download with Fallbacks
+Write-Host "[1/4] Downloading official v8 installer..."
+$Downloaded = $false
 
-# 2. Silent Install (/S is the standard silent flag)
+foreach ($Url in $Urls) {
+    try {
+        Write-Host "  -> Attempting: $Url" -ForegroundColor Gray
+        Invoke-WebRequest -Uri $Url -OutFile $InstallerPath -ErrorAction Stop
+        $Downloaded = $true
+        Write-Host "  -> Download successful!" -ForegroundColor Green
+        break
+    } catch {
+        Write-Host "  -> 404/Error. Trying next URL..." -ForegroundColor DarkYellow
+    }
+}
+
+if (-not $Downloaded -or -not (Test-Path $InstallerPath)) {
+    Write-Host "`n[X] ERROR: Could not download the F@H installer. All URLs failed." -ForegroundColor Red
+    Write-Host "Please verify the official download link at foldingathome.org" -ForegroundColor Red
+    exit
+}
+
+# 2. Silent Install
 Write-Host "[2/4] Installing silently..."
-Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
+try {
+    Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
+} catch {
+    Write-Host "`n[X] ERROR: Failed to execute the installer." -ForegroundColor Red
+    exit
+}
 
 # 3. Configure v8 (Idle-Only + Team)
 Write-Host "[3/4] Applying Team $TeamID and Idle-Only mode..."
-if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir }
+if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 
-# Stopping client if already running to write config
+# Stop client if it auto-started so we can write config safely
 Stop-Process -Name "fah-client" -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
@@ -35,9 +65,28 @@ $ConfigContent = @"
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
 # 4. Startup & Launch
-# Registry key ensures it starts for the user upon login
+# Dynamically find where it installed (F@H has changed this in the past)
+$ExePaths = @(
+    "$env:ProgramFiles\FAH-Client\fah-client.exe",
+    "$env:ProgramFiles\Folding@home Client\fah-client.exe",
+    "${env:ProgramFiles(x86)}\FAH-Client\fah-client.exe",
+    "${env:ProgramFiles(x86)}\Folding@home Client\fah-client.exe"
+)
+
+$ExePath = $null
+foreach ($Path in $ExePaths) {
+    if (Test-Path $Path) {
+        $ExePath = $Path
+        break
+    }
+}
+
+if (-not $ExePath) {
+    Write-Host "`n[X] ERROR: Could not locate fah-client.exe after installation." -ForegroundColor Red
+    exit
+}
+
 $StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-$ExePath = "$env:ProgramFiles\Folding@home Client\fah-client.exe"
 Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`""
 
 Write-Host "[4/4] Launching! Thank you for supporting the team." -ForegroundColor Green
