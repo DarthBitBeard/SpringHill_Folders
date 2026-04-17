@@ -1,42 +1,23 @@
 # --- Spring Hill Folders Deployment (Team: 1068033) ---
-# Start logging everything to a text file
 $LogPath = "$env:TEMP\fah-install-log.txt"
 Start-Transcript -Path $LogPath -Force
 
 $TeamID = "1068033"
 $UserName = "Anonymous"
-
-# Fallback array to combat F@H changing their directory structures
-$Urls = @(
-    "https://download.foldingathome.org/releases/public/release/fah-client/windows-10-64bit/v8.3/latest.exe",
-    "https://download.foldingathome.org/releases/public/release/fah-client/windows-10-64bit/latest.exe",
-    "https://download.foldingathome.org/releases/public/release/fah-client-next/windows-10-64bit/release/latest.exe"
-)
-
+$InstallerUrl = "https://download.foldingathome.org/releases/public/fah-client/windows-10-64bit/release/fah-client_8.5.5_AMD64.exe"
 $InstallerPath = "$env:TEMP\fah-client-v8.exe"
 $ConfigDir = "$env:AppData\FAH-Client"
 $ConfigPath = "$ConfigDir\config.xml"
 
 Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -ForegroundColor Cyan
 
-# 1. Download with Fallbacks
-Write-Host "[1/4] Downloading official v8 installer..."
-$Downloaded = $false
-
-foreach ($Url in $Urls) {
-    try {
-        Write-Host "  -> Attempting: $Url" -ForegroundColor Gray
-        Invoke-WebRequest -Uri $Url -OutFile $InstallerPath -ErrorAction Stop
-        $Downloaded = $true
-        Write-Host "  -> Download successful!" -ForegroundColor Green
-        break
-    } catch {
-        Write-Host "  -> 404/Error. Trying next URL..." -ForegroundColor DarkYellow
-    }
-}
-
-if (-not $Downloaded -or -not (Test-Path $InstallerPath)) {
-    Write-Host "`n[X] ERROR: Could not download the F@H installer. All URLs failed." -ForegroundColor Red
+# 1. Download
+Write-Host "[1/4] Downloading official v8.5.5 installer..."
+try {
+    Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath -ErrorAction Stop
+    Write-Host "  -> Download successful!" -ForegroundColor Green
+} catch {
+    Write-Host "`n[X] ERROR: Could not download the F@H installer. ($($_.Exception.Message))" -ForegroundColor Red
     Stop-Transcript
     return
 }
