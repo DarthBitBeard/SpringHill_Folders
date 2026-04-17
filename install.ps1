@@ -10,21 +10,28 @@ $ConfigPath = "$ConfigDir\config.xml"
 
 Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -ForegroundColor Cyan
 
-# 1. Dynamically Scrape the Latest Official Link
+# 1. Scrape the Raw Directory Server
 Write-Host "[1/4] Hunting for the latest official F@H link..."
 try {
-    $Page = Invoke-WebRequest -Uri "https://foldingathome.org/start-folding/" -UseBasicParsing -ErrorAction Stop
+    # Hitting the raw file server instead of the front-end website
+    $BaseUrl = "https://download.foldingathome.org/releases/public/fah-client/windows-10-64bit/release/"
+    $Page = Invoke-WebRequest -Uri $BaseUrl -UseBasicParsing -ErrorAction Stop
     
-    # Regex to find any link containing "fah-client" and ending in ".exe"
-    $Pattern = 'href="([^"]+fah-client[^"]+\.exe)"'
-    if ($Page.Content -match $Pattern) {
-        $InstallerUrl = $Matches[1]
+    # Find all installer files in the directory listing
+    $Regex = 'href="(fah-client_([0-9\.]+)_AMD64\.exe)"'
+    $Matches = [regex]::Matches($Page.Content, $Regex)
+    
+    if ($Matches.Count -gt 0) {
+        # Sort them by version number to ensure we get the absolute newest one
+        $LatestMatch = $Matches | Sort-Object { [version]$_.Groups[2].Value } | Select-Object -Last 1
+        $FileName = $LatestMatch.Groups[1].Value
+        $InstallerUrl = $BaseUrl + $FileName
         Write-Host "  -> Found live link: $InstallerUrl" -ForegroundColor Green
     } else {
-        throw "Could not locate a valid .exe on the official downloads page."
+        throw "Could not find any .exe files in the F@H public directory."
     }
 } catch {
-    Write-Host "`n[X] ERROR: Web scraping failed. ($($_.Exception.Message))" -ForegroundColor Red
+    Write-Host "`n[X] ERROR: Directory scraping failed. ($($_.Exception.Message))" -ForegroundColor Red
     Stop-Transcript
     return
 }
