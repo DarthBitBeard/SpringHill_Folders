@@ -12,7 +12,7 @@ To join our team immediately, paste the command for your OS into your terminal. 
 ### **🪟 Windows (PowerShell)**
 *Run as Administrator:*
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('[https://raw.githubusercontent.com/DarthBitBeard/SpringHill_Folders/main/install.ps1](https://raw.githubusercontent.com/DarthBitBeard/SpringHill_Folders/main/install.ps1)'))
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/DarthBitBeard/SpringHill_Folders/main/install.ps1'))
 ```
 ### **🐧 Linux (Bash)**
 ```bash
