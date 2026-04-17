@@ -67,13 +67,12 @@ try {
 # 4. Intercept and Kill Factory Defaults
 Write-Host "[4/5] Intercepting factory setup..."
 Write-Host "  -> Default process detected. Letting it settle..." -ForegroundColor Gray
-Start-Sleep -Seconds 8 # Give it time to release file locks
+Start-Sleep -Seconds 8 
 
-# Mercilessly kill the app so we have total control over the config files
 Get-Process -Name "FAHClient", "HideConsole" -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 3
 
-# 5. Apply Spring Hill Configs & Secure Background Launch
+# 5. Apply Spring Hill Configs (Profile Hunter)
 Write-Host "[5/5] Applying Team $TeamID and securing background launch..."
 
 $ConfigContent = @"
@@ -84,32 +83,33 @@ $ConfigContent = @"
 </config>
 "@
 
-# We write to BOTH ProgramData (Machine-wide) and AppData (User-level) to beat the Admin trap
+# Write to ProgramData (Global fallback)
 $ProgramDataDir = "$env:ProgramData\FAHClient"
 if (!(Test-Path $ProgramDataDir)) { New-Item -ItemType Directory -Path $ProgramDataDir -Force | Out-Null }
 Set-Content -Path "$ProgramDataDir\config.xml" -Value $ConfigContent -Force
 
-$AppDataDir = "$env:AppData\FAHClient"
-if (!(Test-Path $AppDataDir)) { New-Item -ItemType Directory -Path $AppDataDir -Force | Out-Null }
-Set-Content -Path "$AppDataDir\config.xml" -Value $ConfigContent -Force
+# BEAT THE ADMIN TRAP: Loop through actual human user profiles on the C:\ drive
+$UserProfiles = Get-ChildItem -Path "C:\Users" -Directory | Where-Object { $_.Name -notmatch "(Public|Default|Administrator)" }
+foreach ($Profile in $UserProfiles) {
+    $TargetDir = "$($Profile.FullName)\AppData\Roaming\FAHClient"
+    if (!(Test-Path $TargetDir)) { New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null }
+    Set-Content -Path "$TargetDir\config.xml" -Value $ConfigContent -Force
+}
 
-# Set the Startup Routine to use the HideConsole wrapper!
-$StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+# Set Startup Routine Globally (HKLM instead of HKCU)
+$StartupPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
 if (Test-Path $HideConsolePath) {
     $StartupCommand = "`"$HideConsolePath`" `"$ExePath`""
-    Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value $StartupCommand
+    Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value $StartupCommand -ErrorAction SilentlyContinue
     
-    # Launch it right now invisibly
     Start-Process -FilePath $HideConsolePath -ArgumentList "`"$ExePath`""
 } else {
-    # Fallback just in case
-    Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`""
+    Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`"" -ErrorAction SilentlyContinue
     Start-Process -FilePath $ExePath -WindowStyle Hidden
 }
 
 Write-Host "Launch successful! Thank you for supporting the Spring Hill team." -ForegroundColor Cyan
 
-# Give the local web server time to spin up, then open the dashboard
 Start-Sleep -Seconds 5
 Start-Process "http://localhost:7396"
 
