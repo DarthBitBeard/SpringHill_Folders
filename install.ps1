@@ -1,12 +1,12 @@
 # --- Spring Hill Folders Deployment (Team: 1068033) ---
-$LogPath = "$env:TEMP\fah-install-log.txt"
+$LogPath = "$env:TEMP\FAHClient-install-log.txt"
 Start-Transcript -Path $LogPath -Force
 
 $TeamID = "1068033"
 $UserName = "Anonymous"
-$InstallerPath = "$env:TEMP\fah-client-v8.exe"
+$InstallerPath = "$env:TEMP\FAHClient-Installer.exe"
 
-# The exact v8.5+ installation paths (Corrected!)
+# The exact v8.5+ installation paths
 $InstallDir = "$env:ProgramFiles\FAHClient"
 $ExePath = "$InstallDir\FAHClient.exe"
 $ConfigDir = "$env:AppData\FAHClient"
@@ -17,6 +17,7 @@ Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -Foregroun
 # 1. Scrape the Raw Directory Server
 Write-Host "[1/4] Hunting for the latest official F@H link..."
 try {
+    # We must leave the hyphen here; this is how F@H names them on their server!
     $BaseUrl = "https://download.foldingathome.org/releases/public/fah-client/windows-10-64bit/release/"
     $Page = Invoke-WebRequest -Uri $BaseUrl -UseBasicParsing -ErrorAction Stop
     
@@ -71,7 +72,7 @@ if (-not (Test-Path $ExePath)) {
 Write-Host "[4/4] Applying Team $TeamID and Idle-Only mode..."
 if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 
-# Stop the newly named process if the installer auto-launched it
+# Stop the process if the installer auto-launched it
 Stop-Process -Name "FAHClient" -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
