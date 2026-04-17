@@ -1,7 +1,7 @@
 # --- Spring Hill Folders Deployment (Team: 1068033) ---
 $TeamID = "1068033"
 $UserName = "Anonymous"
-$InstallerUrl = "https://download.foldingathome.org/releases/public/release/fah-client/windows-10-64bit/v8.3/latest.exe"
+$InstallerUrl = "https://download.foldingathome.org/releases/public/release/fah-client-next/windows-10-64bit/release/latest.exe"
 $InstallerPath = "$env:TEMP\fah-client-v8.exe"
 $ConfigDir = "$env:AppData\FAH-Client"
 $ConfigPath = "$ConfigDir\config.xml"
