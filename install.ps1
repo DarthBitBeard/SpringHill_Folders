@@ -51,6 +51,9 @@ try {
 Write-Host "[3/4] Installing silently..."
 try {
     Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
+    # Add a 5-second buffer to let the file system catch up
+    Write-Host "  -> Waiting 5 seconds for file system lock release..." -ForegroundColor Gray
+    Start-Sleep -Seconds 5
 } catch {
     Write-Host "`n[X] ERROR: Failed to execute the installer. ($($_.Exception.Message))" -ForegroundColor Red
     Stop-Transcript
@@ -74,11 +77,16 @@ $ConfigContent = @"
 "@
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
+# Expanded Search Net
 $ExePaths = @(
+    "$env:ProgramFiles\FAHClient\fah-client.exe",
+    "${env:ProgramFiles(x86)}\FAHClient\fah-client.exe",
     "$env:ProgramFiles\FAH-Client\fah-client.exe",
-    "$env:ProgramFiles\Folding@home Client\fah-client.exe",
     "${env:ProgramFiles(x86)}\FAH-Client\fah-client.exe",
-    "${env:ProgramFiles(x86)}\Folding@home Client\fah-client.exe"
+    "$env:ProgramFiles\Folding@home\fah-client.exe",
+    "${env:ProgramFiles(x86)}\Folding@home\fah-client.exe",
+    "$env:LOCALAPPDATA\Programs\FAHClient\fah-client.exe",
+    "$env:LOCALAPPDATA\FAHClient\fah-client.exe"
 )
 
 $ExePath = $null
