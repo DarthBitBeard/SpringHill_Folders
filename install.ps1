@@ -9,7 +9,9 @@ $InstallerPath = "$env:TEMP\FAHClient-Installer.exe"
 # The exact v8.5+ installation paths
 $InstallDir = "$env:ProgramFiles\FAHClient"
 $ExePath = "$InstallDir\FAHClient.exe"
-$ConfigDir = "$env:AppData\FAHClient"
+
+# CHANGED: F@H v8 stores the active configuration in ProgramData, not AppData!
+$ConfigDir = "$env:ProgramData\FAHClient"
 $ConfigPath = "$ConfigDir\config.xml"
 
 Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -ForegroundColor Cyan
@@ -17,7 +19,6 @@ Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -Foregroun
 # 1. Scrape the Raw Directory Server
 Write-Host "[1/4] Hunting for the latest official F@H link..."
 try {
-    # We must leave the hyphen here; this is how F@H names them on their server!
     $BaseUrl = "https://download.foldingathome.org/releases/public/fah-client/windows-10-64bit/release/"
     $Page = Invoke-WebRequest -Uri $BaseUrl -UseBasicParsing -ErrorAction Stop
     
@@ -68,20 +69,23 @@ if (-not (Test-Path $ExePath)) {
     return
 }
 
-# 4. Configure v8 (Idle-Only + Team) & Launch
-Write-Host "[4/4] Applying Team $TeamID and Idle-Only mode..."
-if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
+# 4. Configure v8 (Idle-Only, GPUs Enabled + Team)
+Write-Host "[4/4] Applying Team $TeamID, GPU access, and Idle-Only mode..."
 
-# Stop the process if the installer auto-launched it
-Stop-Process -Name "FAHClient" -ErrorAction SilentlyContinue
+# Force kill the client so we can overwrite its config file safely
+Stop-Process -Name "FAHClient" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
+if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
+
+# CHANGED: Explicitly telling the client to use GPUs and set the team
 $ConfigContent = @"
 <config>
   <user v='$UserName'/>
   <team v='$TeamID'/>
   <power v='full'/>
   <idle v='true'/>
+  <gpu v='true'/>
 </config>
 "@
 Set-Content -Path $ConfigPath -Value $ConfigContent
