@@ -48,21 +48,30 @@ try {
     return
 }
 
-# 3. Silent Install
+# 3. Silent Install (with Asynchronous Guard Dog)
 Write-Host "[3/4] Installing silently..."
 try {
-    Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
-    Write-Host "  -> Waiting for file system lock release..." -ForegroundColor Gray
-    Start-Sleep -Seconds 5
+    Start-Process -FilePath $InstallerPath -ArgumentList "/S"
+    Write-Host "  -> Waiting for the background installer to unpack and finish..." -ForegroundColor Gray
+    
+    # Loop to wait until the FAHClient.exe actually appears on the hard drive (up to 60 seconds)
+    $Timer = 0
+    while (!(Test-Path $ExePath) -and $Timer -lt 30) {
+        Start-Sleep -Seconds 2
+        $Timer++
+    }
+    
+    # Give the installer 10 extra seconds to write its default configs and start the service
+    Write-Host "  -> Files found! Waiting for background service registration..." -ForegroundColor Gray
+    Start-Sleep -Seconds 10
 } catch {
     Write-Host "`n[X] ERROR: Failed to execute the installer. ($($_.Exception.Message))" -ForegroundColor Red
     Stop-Transcript
     return
 }
 
-# Verify it actually installed where we expect it to
 if (-not (Test-Path $ExePath)) {
-    Write-Host "`n[X] ERROR: Installation finished, but $ExePath is missing." -ForegroundColor Red
+    Write-Host "`n[X] ERROR: Installation timed out. $ExePath is missing." -ForegroundColor Red
     Stop-Transcript
     return
 }
@@ -70,10 +79,10 @@ if (-not (Test-Path $ExePath)) {
 # 4. Configure v8 (Idle-Only, GPUs Enabled + Team)
 Write-Host "[4/4] Applying Team $TeamID, GPU access, and Idle-Only mode..."
 
-# CHANGED: Stop the Windows Service so it doesn't fight us for the config file
+# Brutally kill the service and the process so we have total control over the config file
 Stop-Service -Name "FAHClient" -ErrorAction SilentlyContinue
-Stop-Process -Name "FAHClient" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+Get-Process -Name "FAHClient" -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 3
 
 if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 
@@ -88,13 +97,13 @@ $ConfigContent = @"
 "@
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
-# CHANGED: Start the background service back up with our new config
+# Start the service back up. It will now read our custom file.
 Start-Service -Name "FAHClient" -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 3
 
 Write-Host "Launch successful! Thank you for supporting the Spring Hill team." -ForegroundColor Cyan
 
-# Open the Web UI so the user can see their successful connection
+# Open the local Web UI to verify
 Start-Process "http://localhost:7396"
 
 Stop-Transcript
