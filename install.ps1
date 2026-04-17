@@ -5,7 +5,11 @@ Start-Transcript -Path $LogPath -Force
 $TeamID = "1068033"
 $UserName = "Anonymous"
 $InstallerPath = "$env:TEMP\fah-client-v8.exe"
-$ConfigDir = "$env:AppData\FAH-Client"
+
+# The exact v8.5+ installation paths
+$InstallDir = "$env:ProgramFiles\FAHClient"
+$ExePath = "$InstallDir\fah-client.exe"
+$ConfigDir = "$env:AppData\FAHClient"
 $ConfigPath = "$ConfigDir\config.xml"
 
 Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -ForegroundColor Cyan
@@ -13,16 +17,13 @@ Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -Foregroun
 # 1. Scrape the Raw Directory Server
 Write-Host "[1/4] Hunting for the latest official F@H link..."
 try {
-    # Hitting the raw file server instead of the front-end website
     $BaseUrl = "https://download.foldingathome.org/releases/public/fah-client/windows-10-64bit/release/"
     $Page = Invoke-WebRequest -Uri $BaseUrl -UseBasicParsing -ErrorAction Stop
     
-    # Find all installer files in the directory listing
     $Regex = 'href="(fah-client_([0-9\.]+)_AMD64\.exe)"'
     $Matches = [regex]::Matches($Page.Content, $Regex)
     
     if ($Matches.Count -gt 0) {
-        # Sort them by version number to ensure we get the absolute newest one
         $LatestMatch = $Matches | Sort-Object { [version]$_.Groups[2].Value } | Select-Object -Last 1
         $FileName = $LatestMatch.Groups[1].Value
         $InstallerUrl = $BaseUrl + $FileName
@@ -51,11 +52,17 @@ try {
 Write-Host "[3/4] Installing silently..."
 try {
     Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
-    # Add a 5-second buffer to let the file system catch up
-    Write-Host "  -> Waiting 5 seconds for file system lock release..." -ForegroundColor Gray
-    Start-Sleep -Seconds 5
+    Write-Host "  -> Waiting for file system lock release..." -ForegroundColor Gray
+    Start-Sleep -Seconds 3
 } catch {
     Write-Host "`n[X] ERROR: Failed to execute the installer. ($($_.Exception.Message))" -ForegroundColor Red
+    Stop-Transcript
+    return
+}
+
+# Verify it actually installed where we expect it to
+if (-not (Test-Path $ExePath)) {
+    Write-Host "`n[X] ERROR: Installation finished, but $ExePath is missing." -ForegroundColor Red
     Stop-Transcript
     return
 }
@@ -77,32 +84,7 @@ $ConfigContent = @"
 "@
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
-# Expanded Search Net
-$ExePaths = @(
-    "$env:ProgramFiles\FAHClient\fah-client.exe",
-    "${env:ProgramFiles(x86)}\FAHClient\fah-client.exe",
-    "$env:ProgramFiles\FAH-Client\fah-client.exe",
-    "${env:ProgramFiles(x86)}\FAH-Client\fah-client.exe",
-    "$env:ProgramFiles\Folding@home\fah-client.exe",
-    "${env:ProgramFiles(x86)}\Folding@home\fah-client.exe",
-    "$env:LOCALAPPDATA\Programs\FAHClient\fah-client.exe",
-    "$env:LOCALAPPDATA\FAHClient\fah-client.exe"
-)
-
-$ExePath = $null
-foreach ($Path in $ExePaths) {
-    if (Test-Path $Path) {
-        $ExePath = $Path
-        break
-    }
-}
-
-if (-not $ExePath) {
-    Write-Host "`n[X] ERROR: Could not locate fah-client.exe after installation." -ForegroundColor Red
-    Stop-Transcript
-    return
-}
-
+# Set to start automatically on Windows boot
 $StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`""
 
