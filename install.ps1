@@ -1,4 +1,8 @@
 # --- Spring Hill Folders Deployment (Team: 1068033) ---
+# Start logging everything to a text file
+$LogPath = "$env:TEMP\fah-install-log.txt"
+Start-Transcript -Path $LogPath -Force
+
 $TeamID = "1068033"
 $UserName = "Anonymous"
 
@@ -33,8 +37,7 @@ foreach ($Url in $Urls) {
 
 if (-not $Downloaded -or -not (Test-Path $InstallerPath)) {
     Write-Host "`n[X] ERROR: Could not download the F@H installer. All URLs failed." -ForegroundColor Red
-    Write-Host "Please verify the official download link at foldingathome.org" -ForegroundColor Red
-    Read-Host "Press Enter to exit..."
+    Stop-Transcript
     return
 }
 
@@ -43,8 +46,8 @@ Write-Host "[2/4] Installing silently..."
 try {
     Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
 } catch {
-    Write-Host "`n[X] ERROR: Failed to execute the installer." -ForegroundColor Red
-    Read-Host "Press Enter to exit..."
+    Write-Host "`n[X] ERROR: Failed to execute the installer. ($($_.Exception.Message))" -ForegroundColor Red
+    Stop-Transcript
     return
 }
 
@@ -83,7 +86,7 @@ foreach ($Path in $ExePaths) {
 
 if (-not $ExePath) {
     Write-Host "`n[X] ERROR: Could not locate fah-client.exe after installation." -ForegroundColor Red
-    Read-Host "Press Enter to exit..."
+    Stop-Transcript
     return
 }
 
@@ -92,3 +95,5 @@ Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`""
 
 Write-Host "[4/4] Launching! Thank you for supporting the team." -ForegroundColor Green
 Start-Process -FilePath $ExePath
+
+Stop-Transcript
