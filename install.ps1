@@ -4,15 +4,33 @@ Start-Transcript -Path $LogPath -Force
 
 $TeamID = "1068033"
 $UserName = "Anonymous"
-$InstallerUrl = "https://download.foldingathome.org/releases/public/fah-client/windows-10-64bit/release/fah-client_8.5.5_AMD64.exe"
 $InstallerPath = "$env:TEMP\fah-client-v8.exe"
 $ConfigDir = "$env:AppData\FAH-Client"
 $ConfigPath = "$ConfigDir\config.xml"
 
 Write-Host "--- Spring Hill Folders: Starting Windows Deployment ---" -ForegroundColor Cyan
 
-# 1. Download
-Write-Host "[1/4] Downloading official v8.5.5 installer..."
+# 1. Dynamically Scrape the Latest Official Link
+Write-Host "[1/4] Hunting for the latest official F@H link..."
+try {
+    $Page = Invoke-WebRequest -Uri "https://foldingathome.org/start-folding/" -UseBasicParsing -ErrorAction Stop
+    
+    # Regex to find any link containing "fah-client" and ending in ".exe"
+    $Pattern = 'href="([^"]+fah-client[^"]+\.exe)"'
+    if ($Page.Content -match $Pattern) {
+        $InstallerUrl = $Matches[1]
+        Write-Host "  -> Found live link: $InstallerUrl" -ForegroundColor Green
+    } else {
+        throw "Could not locate a valid .exe on the official downloads page."
+    }
+} catch {
+    Write-Host "`n[X] ERROR: Web scraping failed. ($($_.Exception.Message))" -ForegroundColor Red
+    Stop-Transcript
+    return
+}
+
+# 2. Download
+Write-Host "[2/4] Downloading official installer..."
 try {
     Invoke-WebRequest -Uri $InstallerUrl -OutFile $InstallerPath -ErrorAction Stop
     Write-Host "  -> Download successful!" -ForegroundColor Green
@@ -22,8 +40,8 @@ try {
     return
 }
 
-# 2. Silent Install
-Write-Host "[2/4] Installing silently..."
+# 3. Silent Install
+Write-Host "[3/4] Installing silently..."
 try {
     Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
 } catch {
@@ -32,8 +50,8 @@ try {
     return
 }
 
-# 3. Configure v8 (Idle-Only + Team)
-Write-Host "[3/4] Applying Team $TeamID and Idle-Only mode..."
+# 4. Configure v8 (Idle-Only + Team) & Launch
+Write-Host "[4/4] Applying Team $TeamID and Idle-Only mode..."
 if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 
 Stop-Process -Name "fah-client" -ErrorAction SilentlyContinue
@@ -49,7 +67,6 @@ $ConfigContent = @"
 "@
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
-# 4. Startup & Launch
 $ExePaths = @(
     "$env:ProgramFiles\FAH-Client\fah-client.exe",
     "$env:ProgramFiles\Folding@home Client\fah-client.exe",
@@ -74,7 +91,7 @@ if (-not $ExePath) {
 $StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`""
 
-Write-Host "[4/4] Launching! Thank you for supporting the team." -ForegroundColor Green
+Write-Host "Launch successful! Thank you for supporting the Spring Hill team." -ForegroundColor Cyan
 Start-Process -FilePath $ExePath
 
 Stop-Transcript
