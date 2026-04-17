@@ -9,8 +9,6 @@ $InstallerPath = "$env:TEMP\FAHClient-Installer.exe"
 # The exact v8.5+ installation paths
 $InstallDir = "$env:ProgramFiles\FAHClient"
 $ExePath = "$InstallDir\FAHClient.exe"
-
-# CHANGED: F@H v8 stores the active configuration in ProgramData, not AppData!
 $ConfigDir = "$env:ProgramData\FAHClient"
 $ConfigPath = "$ConfigDir\config.xml"
 
@@ -55,7 +53,7 @@ Write-Host "[3/4] Installing silently..."
 try {
     Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait
     Write-Host "  -> Waiting for file system lock release..." -ForegroundColor Gray
-    Start-Sleep -Seconds 3
+    Start-Sleep -Seconds 5
 } catch {
     Write-Host "`n[X] ERROR: Failed to execute the installer. ($($_.Exception.Message))" -ForegroundColor Red
     Stop-Transcript
@@ -72,13 +70,13 @@ if (-not (Test-Path $ExePath)) {
 # 4. Configure v8 (Idle-Only, GPUs Enabled + Team)
 Write-Host "[4/4] Applying Team $TeamID, GPU access, and Idle-Only mode..."
 
-# Force kill the client so we can overwrite its config file safely
+# CHANGED: Stop the Windows Service so it doesn't fight us for the config file
+Stop-Service -Name "FAHClient" -ErrorAction SilentlyContinue
 Stop-Process -Name "FAHClient" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
 if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 
-# CHANGED: Explicitly telling the client to use GPUs and set the team
 $ConfigContent = @"
 <config>
   <user v='$UserName'/>
@@ -90,11 +88,13 @@ $ConfigContent = @"
 "@
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
-# Set to start automatically on Windows boot
-$StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`""
+# CHANGED: Start the background service back up with our new config
+Start-Service -Name "FAHClient" -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
 
 Write-Host "Launch successful! Thank you for supporting the Spring Hill team." -ForegroundColor Cyan
-Start-Process -FilePath $ExePath
+
+# Open the Web UI so the user can see their successful connection
+Start-Process "http://localhost:7396"
 
 Stop-Transcript
