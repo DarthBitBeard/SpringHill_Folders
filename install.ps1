@@ -79,8 +79,7 @@ if (-not (Test-Path $ExePath)) {
 # 4. Configure v8 (Idle-Only, GPUs Enabled + Team)
 Write-Host "[4/4] Applying Team $TeamID, GPU access, and Idle-Only mode..."
 
-# Brutally kill the service and the process so we have total control over the config file
-Stop-Service -Name "FAHClient" -ErrorAction SilentlyContinue
+# Brutally kill the background process so we have total control over the config file
 Get-Process -Name "FAHClient" -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 3
 
@@ -97,13 +96,17 @@ $ConfigContent = @"
 "@
 Set-Content -Path $ConfigPath -Value $ConfigContent
 
-# Start the service back up. It will now read our custom file.
-Start-Service -Name "FAHClient" -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 3
+# Set to start automatically on Windows boot
+$StartupPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+Set-ItemProperty -Path $StartupPath -Name "FoldingAtHome" -Value "`"$ExePath`""
+
+# Start the application process back up!
+Start-Process -FilePath $ExePath
 
 Write-Host "Launch successful! Thank you for supporting the Spring Hill team." -ForegroundColor Cyan
 
-# Open the local Web UI to verify
+# Give the F@H local web server a few seconds to spin up on port 7396 before opening the browser
+Start-Sleep -Seconds 4
 Start-Process "http://localhost:7396"
 
 Stop-Transcript
