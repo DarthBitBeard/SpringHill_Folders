@@ -6,9 +6,9 @@ $TeamID = "1068033"
 $UserName = "Anonymous"
 $InstallerPath = "$env:TEMP\fah-client-v8.exe"
 
-# The exact v8.5+ installation paths
+# The exact v8.5+ installation paths (Corrected!)
 $InstallDir = "$env:ProgramFiles\FAHClient"
-$ExePath = "$InstallDir\fah-client.exe"
+$ExePath = "$InstallDir\FAHClient.exe"
 $ConfigDir = "$env:AppData\FAHClient"
 $ConfigPath = "$ConfigDir\config.xml"
 
@@ -71,7 +71,8 @@ if (-not (Test-Path $ExePath)) {
 Write-Host "[4/4] Applying Team $TeamID and Idle-Only mode..."
 if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 
-Stop-Process -Name "fah-client" -ErrorAction SilentlyContinue
+# Stop the newly named process if the installer auto-launched it
+Stop-Process -Name "FAHClient" -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
 $ConfigContent = @"
